@@ -131,14 +131,13 @@ def evaluate(data, model, params, device='cuda:1'):
             ))
 
 
-def select(selected, left, model, params):
+def active_pick(selected, left, model, params):
     select_dict = {sid: (cont, tags) for sid, cont, tags in selected}
     left_dict = {sid: (cont, tags) for sid, cont, tags in left}
     state_dicts = inf(data=left, model=model, params=params)
     sorted_states = sorted([
         (state['id'], state['confidence']) for state in state_dicts],
-        key=lambda _x: _x[1],
-        reverse=True)
+        key=lambda _x: _x[1])
     for k, c in sorted_states[:128]:
         select_dict[k] = left_dict[k]
         left_dict.pop(k)

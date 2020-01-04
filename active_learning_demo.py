@@ -7,7 +7,7 @@ import torch
 
 from utils import TokenMap
 from models import Encoder, Attention, Decoder, Seq2Seq
-from routine import train, inf, evaluate, select
+from routine import train, inf, evaluate, active_pick
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--inf", default="in.data")
@@ -131,18 +131,19 @@ if __name__ == "__main__":
     L = len(train_data)
     val_data = train_data[: int(0.2*L)]
     train_data = train_data[int(0.2*L):]
-    print("nomal training")
-    for ib in range(128, len(train_data), 128):
-        print(ib)
-        train(data=train_data[:ib], model=model1, params=params)
-        evaluate(data=val_data, model=model1, params=params)
-    
-    # print("active learning")
-    # selected = train_data[:128]
-    # left = train_data[128:]
-    # while left:
-    #     print(len(selected))
-    #     train(data=selected, model=model2, params=params)
-    #     evaluate(data=val_data, model=model2, params=params)
-    #     print("selecting the new subset")
-    #     select, left = select(selected, left, model2, params)
+    if False:
+        print("nomal training")
+        for ib in range(128, len(train_data), 128):
+            print(ib)
+            train(data=train_data[:ib], model=model1, params=params)
+            evaluate(data=val_data, model=model1, params=params)
+    if True:
+        print("active learning")
+        selected = train_data[:128]
+        left = train_data[128:]
+        while left:
+            print(len(selected))
+            train(data=selected, model=model2, params=params)
+            evaluate(data=val_data, model=model2, params=params)
+            print("selecting the new subset")
+            select, left = active_pick(selected, left, model2, params)
