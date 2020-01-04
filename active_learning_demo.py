@@ -129,8 +129,8 @@ if __name__ == "__main__":
     from random import shuffle
     shuffle(train_data)
     L = len(train_data)
-    val_data = train_data[: int(0.2*L)]
-    train_data = train_data[int(0.2*L):]
+    val_data = train_data[: int(0.1*L)]
+    train_data = train_data[int(0.1*L):]
     if False:
         print("nomal training")
         for ib in range(128, len(train_data), 128):
@@ -146,4 +146,4 @@ if __name__ == "__main__":
             train(data=selected, model=model2, params=params)
             evaluate(data=val_data, model=model2, params=params)
             print("selecting the new subset")
-            select, left = active_pick(selected, left, model2, params)
+            selected, left = active_pick(selected, left, model2, params)

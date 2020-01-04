@@ -108,25 +108,24 @@ def inf(data, model, params, device='cuda:1'):
 def evaluate(data, model, params, device='cuda:1'):
     model.to(device)
     model.eval()
-    for e in range(params.num_epoch):
-        cum_lo = 0
-        cum_acc = 0
-        cum_conf = 0
-        random.shuffle(data)
-        for i in range(0, len(data), params.batch_size):
-            batch_samples = data[i: i+params.batch_size]
-            sids, cont_tensor, tags_tensor, l_list = pack_batch(batch_samples, device)
-            output = model(cont_tensor, tags_tensor, 0)
-            logits = output[1:, :, :].permute(1, 2, 0)
-            target = tags_tensor[1:, :].permute(1, 0)
+    cum_lo = 0
+    cum_acc = 0
+    cum_conf = 0
+    random.shuffle(data)
+    for i in range(0, len(data), params.batch_size):
+        batch_samples = data[i: i+params.batch_size]
+        sids, cont_tensor, tags_tensor, l_list = pack_batch(batch_samples, device)
+        output = model(cont_tensor, tags_tensor, 0)
+        logits = output[1:, :, :].permute(1, 2, 0)
+        target = tags_tensor[1:, :].permute(1, 0)
 
-            for il, l in enumerate(l_list):
-                anstags = logits[il:il+1, :, :l].max(1)[1]
-                cum_acc += torch.mean((anstags==target[il, :l]).float()).cpu().item()
+        for il, l in enumerate(l_list):
+            anstags = logits[il:il+1, :, :l].max(1)[1]
+            cum_acc += torch.mean((anstags==target[il, :l]).float()).cpu().item()
 
-                conf = F.log_softmax(logits[il:il+1, :, :l], dim=1).max(1)[0]
-                cum_conf += conf.cpu().mean().item()
-        print("\tloss {:.4f}: acc {:.4f}: conf {:.4f}".format(
+            conf = F.log_softmax(logits[il:il+1, :, :l], dim=1).max(1)[0]
+            cum_conf += conf.cpu().mean().item()
+    print("\tloss {:.4f}: acc {:.4f}: conf {:.4f}".format(
             cum_lo/len(data), cum_acc/len(data), cum_conf/len(data)
             ))
 
