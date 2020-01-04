@@ -7,13 +7,13 @@ import torch
 
 from utils import TokenMap
 from models import Encoder, Attention, Decoder, Seq2Seq
-from routine import train, inf
+from routine import train, inf, evaluate, select
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--inf", default="in.data")
 parser.add_argument("--outf", default="out.data.new")
 parser.add_argument("--logpfx", default="log")
-parser.add_argument("--num_epoch", default=1)
+parser.add_argument("--num_epoch", default=2)
 parser.add_argument("--batch_size", default=8)
 parser.add_argument("--model_save_dir", default="saved_models")
 parser.add_argument("--model_load_dir", default="saved_models")
@@ -80,9 +80,6 @@ def parse_sample(data_sample, word_map: TokenMap, tag_map: TokenMap):
     ]
 """
 
-# TODO: parser the predicted tags into the given format
-
-
 
 def analysis_data(data):
     length_list = [len(content) for _, content,  _ in data]
@@ -120,42 +117,32 @@ if __name__ == "__main__":
     # load & parse data
     data = load_from_infile(params.inf, word_map, tag_map)
     train_data, inf_data = split_data(data)
-    print(train_data)
-    print(inf_data)
     print("word map size:", len(word_map))
     print("tag map size:", len(tag_map))
     print("3 data prepared")
-    model = Seq2Seq(vocab=word_map, tags=tag_map)
+    model1 = Seq2Seq(vocab=word_map, tags=tag_map)
+    model2 = Seq2Seq(vocab=word_map, tags=tag_map)
     print("4 model init")
-    # if there is saved model, then load
-    if params.model_load_dir and os.path.exists(os.path.join(params.model_save_dir, 'model.pt')):
-        print("4 load saved model")
-        model.load_state_dict(torch.load(os.path.join(params.model_load_dir, 'model.pt')))
-    else:
-        print("4 no saved model to load")
+
     ######################### prepare model and data #########################
 
-    ######################### train the model #########################
-    # TODO:
-    if train_data:
-        train(data=train_data, model=model, params=params)
-    ######################### train the model #########################
-
-    ######################### save model & meta #########################
-    word_emb, tag_emb = model.get_new_emb()
-    word_map.update_id2vec(word_emb)
-    tag_map.update_id2vec(tag_emb)
-    torch.save(model.state_dict(), os.path.join(params.model_save_dir, 'model.pt'))
-    word_map.save_token_map(os.path.join(params.model_save_dir, 'meta', 'word'))
-    tag_map.save_token_map(os.path.join(params.model_save_dir, 'meta', 'tag'))
-    ######################### save model & meta #########################
-
-    ######################### inference #########################
-    data_dicts = {}
-    if train_data:
-        data_dicts['train.out'] = inf(data=train_data, model=model, params=params)
-    if inf_data:
-        data_dicts['inf.out'] = inf(data=inf_data, model=model, params=params)
-    print(data_dicts)
-    save_to_outdir('./', data_dicts)
-    ######################### inference #########################
+    from random import shuffle
+    shuffle(train_data)
+    L = len(train_data)
+    val_data = train_data[: int(0.2*L)]
+    train_data = train_data[int(0.2*L):]
+    # print("nomal training")
+    # for ib in range(0, len(train_data), 32):
+    #     print(ib)
+    #     train(data=train_data[:ib], model=model1, params=params)
+    #     evaluate(data=val_data, model=model1, params=params)
+    
+    print("active learning")
+    selected = train_data[:128]
+    left = train_data[128:]
+    while left:
+        print(len(selected))
+        train(data=selected, model=model2, params=params)
+        evaluate(data=val_data, model=model2, params=params)
+        print("selecting the new subset")
+        select(selected, left, model2, params)

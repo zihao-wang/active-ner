@@ -38,12 +38,13 @@ def pack_batch(batch_samples, device):
     l_list = [len(c) for c in cont_list]
     L = max(l_list)
     cont_tensor = torch.cat(
-        [torch.LongTensor(c+[0]*(L-len(c))).view(-1, 1) for c in cont_list], 
+        [torch.LongTensor(c+[1]*(L-len(c))).view(-1, 1) for c in cont_list], 
         dim=1)
     tags_tensor = torch.cat(
-        [torch.LongTensor(c+[0]*(L-len(c))).view(-1, 1) for c in tags_list],
+        [torch.LongTensor(c+[1]*(L-len(c))).view(-1, 1) for c in tags_list],
         dim=1)
     return sids, cont_tensor.to(device), tags_tensor.to(device), l_list
+
 
 def train(data, model, params, device='cuda:1'):
     model.to(device)
@@ -76,14 +77,14 @@ def train(data, model, params, device='cuda:1'):
                 conf = F.log_softmax(logits[il:il+1, :, :l], dim=1).max(1)[0]
                 cum_conf += conf.cpu().mean().item()
                 opt.step()
-            print("step {} : loss {:.8f}, acc {:.8f}, conf {:.8f}".format(
-                    i, cum_lo/(i+1), cum_acc/(i+1), cum_conf/(i+1)), 
-                  end='\r')
-        print("\nepoch # {} : loss {:.4f}: acc {:.4f}: conf {:.4f}".format(
-            e, cum_lo/len(data), cum_acc/len(data), cum_conf/len(data)
-            ))
+        #     print("step {} : loss {:.8f}, acc {:.8f}, conf {:.8f}".format(
+        #             i, cum_lo/(i+1), cum_acc/(i+1), cum_conf/(i+1)), 
+        #           end='\r')
+        # print("\nepoch # {} : loss {:.4f}: acc {:.4f}: conf {:.4f}".format(
+        #     e, cum_lo/len(data), cum_acc/len(data), cum_conf/len(data)
+        #     ))
 
-# TODO: inference with data and model
+
 def inf(data, model, params, device='cuda:1'):
     model.to(device)
     model.eval()
@@ -91,7 +92,7 @@ def inf(data, model, params, device='cuda:1'):
     for i in range(0, len(data)):
         batch_samples = data[i: i+1]
         sids, cont_tensor, tags_tensor, l_list = pack_batch(batch_samples, device)
-        print(sids, cont_tensor.shape)
+        # print(sids, cont_tensor.shape)
         output = model.generate(cont_tensor)
         logits = output[1:, :, :].permute(1, 2, 0)
         anstags = logits.max(1)[1][0]
@@ -102,3 +103,43 @@ def inf(data, model, params, device='cuda:1'):
              'tags': parse_anstags(tag_str)}
         )
     return state_dicts
+
+
+def evaluate(data, model, params, device='cuda:1'):
+    model.to(device)
+    model.eval()
+    for e in range(params.num_epoch):
+        cum_lo = 0
+        cum_acc = 0
+        cum_conf = 0
+        random.shuffle(data)
+        for i in range(0, len(data), params.batch_size):
+            batch_samples = data[i: i+params.batch_size]
+            sids, cont_tensor, tags_tensor, l_list = pack_batch(batch_samples, device)
+            output = model(cont_tensor, tags_tensor, 0)
+            logits = output[1:, :, :].permute(1, 2, 0)
+            target = tags_tensor[1:, :].permute(1, 0)
+
+            for il, l in enumerate(l_list):
+                anstags = logits[il:il+1, :, :l].max(1)[1]
+                cum_acc += torch.mean((anstags==target[il, :l]).float()).cpu().item()
+
+                conf = F.log_softmax(logits[il:il+1, :, :l], dim=1).max(1)[0]
+                cum_conf += conf.cpu().mean().item()
+        print("\tloss {:.4f}: acc {:.4f}: conf {:.4f}".format(
+            cum_lo/len(data), cum_acc/len(data), cum_conf/len(data)
+            ))
+
+
+def select(selected, left, model, params):
+    select_dict = {sid: (cont, tags) for sid, cont, tags in selected}
+    left_dict = {sid: (cont, tags) for sid, cont, tags in left}
+    state_dicts = inf(data=left, model=model, params=params)
+    sorted_states = sorted([
+        (state['id'], state['confidence']) for state in state_dicts],
+        key=lambda _x: _x[1],
+        reverse=True)
+    for k, c in sorted_states[:128]:
+        select_dict[k] = left_dict[k]
+        left_dict.pop(k)
+    return [[k, c, t] for k, (c, t) in select_dict.items()], [[k, c, t] for k, (c, t) in left_dict.items()]
