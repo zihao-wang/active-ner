@@ -1,0 +1,5 @@
+*.data
+*.out
+.vscode
+__pycache__
+saved_models
