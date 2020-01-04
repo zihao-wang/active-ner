@@ -131,18 +131,18 @@ if __name__ == "__main__":
     L = len(train_data)
     val_data = train_data[: int(0.2*L)]
     train_data = train_data[int(0.2*L):]
-    # print("nomal training")
-    # for ib in range(0, len(train_data), 32):
-    #     print(ib)
-    #     train(data=train_data[:ib], model=model1, params=params)
-    #     evaluate(data=val_data, model=model1, params=params)
+    print("nomal training")
+    for ib in range(128, len(train_data), 128):
+        print(ib)
+        train(data=train_data[:ib], model=model1, params=params)
+        evaluate(data=val_data, model=model1, params=params)
     
-    print("active learning")
-    selected = train_data[:128]
-    left = train_data[128:]
-    while left:
-        print(len(selected))
-        train(data=selected, model=model2, params=params)
-        evaluate(data=val_data, model=model2, params=params)
-        print("selecting the new subset")
-        select(selected, left, model2, params)
+    # print("active learning")
+    # selected = train_data[:128]
+    # left = train_data[128:]
+    # while left:
+    #     print(len(selected))
+    #     train(data=selected, model=model2, params=params)
+    #     evaluate(data=val_data, model=model2, params=params)
+    #     print("selecting the new subset")
+    #     select, left = select(selected, left, model2, params)
