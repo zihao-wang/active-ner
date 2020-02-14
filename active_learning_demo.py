@@ -131,13 +131,13 @@ if __name__ == "__main__":
     L = len(train_data)
     val_data = train_data[: int(0.1*L)]
     train_data = train_data[int(0.1*L):]
-    if False:
+    if True:
         print("nomal training")
         for ib in range(128, len(train_data), 128):
             print(ib)
             train(data=train_data[:ib], model=model1, params=params)
             evaluate(data=val_data, model=model1, params=params)
-    if True:
+    if False:
         print("active learning")
         selected = train_data[:128]
         left = train_data[128:]
